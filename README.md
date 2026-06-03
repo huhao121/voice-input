@@ -39,8 +39,8 @@ pip install -r requirements.txt
 ```bat
 python src\main.py
 ```
-**首次运行会自动下载语音模型（~250MB）**到程序目录的 `models\sense-voice\`，下完即用。
-（下载慢/失败可手动下载放进去，或设 `STT_MODEL_DIR`、`MODEL_URL` 换源。）
+**首次运行会自动下载语音模型（~230MB，默认走国内 hf-mirror）**到程序目录的 `models\sense-voice\`，下完即用。
+（换源：设 `MODEL_BASE_URL`；手动放模型：把 `model.int8.onnx` + `tokens.txt` 放进该目录即可，会自动跳过下载。）
 
 **4. 用**
 把光标放进任意输入框 → **按住 F9 说话** → **松开** → 整理后的文字自动出现。
