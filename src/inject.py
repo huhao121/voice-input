@@ -57,17 +57,22 @@ if sys.platform == "win32":
         return e
 
     def _type_unicode(text: str):
+        # 把整段文字的所有按键事件一次性发出去 → "唰"地整句出现，没有逐字打字机效果
+        evts = []
         for ch in text:
             if ch == "\r":
                 continue
             if ch == "\n":
-                evts = [_make(_VK_RETURN, 0, 0), _make(_VK_RETURN, 0, _KEYEVENTF_KEYUP)]
+                evts.append(_make(_VK_RETURN, 0, 0))
+                evts.append(_make(_VK_RETURN, 0, _KEYEVENTF_KEYUP))
             else:
                 code = ord(ch)
-                evts = [_make(0, code, _KEYEVENTF_UNICODE),
-                        _make(0, code, _KEYEVENTF_UNICODE | _KEYEVENTF_KEYUP)]
-            arr = (_INPUT * len(evts))(*evts)
-            _SendInput(len(evts), arr, ctypes.sizeof(_INPUT))
+                evts.append(_make(0, code, _KEYEVENTF_UNICODE))
+                evts.append(_make(0, code, _KEYEVENTF_UNICODE | _KEYEVENTF_KEYUP))
+        if not evts:
+            return
+        arr = (_INPUT * len(evts))(*evts)
+        _SendInput(len(evts), arr, ctypes.sizeof(_INPUT))
 
 
 # ---- 方法二：剪贴板 + Ctrl+V（备用）----
