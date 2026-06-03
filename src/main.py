@@ -50,29 +50,24 @@ def _process(audio, cid=0):
         print(f"  #{cid} 录音太短，忽略")
         return
     try:
-        from inject import insert_text, replace_text
+        from inject import insert_text
         ms = lambda dt: int(dt * 1000)
         t0 = time.time()
         raw = _transcribe(audio)
+        t1 = time.time()
         print(f"[STT #{cid}] {raw}")
-        insert_text(raw)                      # ① 先把原文秒出到输入框（实时感）
-        t_raw = time.time()
-        print(f"[出原文] {ms(t_raw - t0)}ms")
-
-        cleaned = cleanup(raw)                # ② 后台整理（cleanup 内部：关了/没key/失败都会原样返回 raw）
-        t_clean = time.time()
-        if cleaned and cleaned != raw:
-            replace_text(len(raw), cleaned)   # ③ 整理好了，把原文替换成干净版
-            print(f"[整理] {cleaned}")
-        t_end = time.time()
-
-        timing = (f"出原文={ms(t_raw - t0)}ms 整理={ms(t_clean - t_raw)}ms "
-                  f"替换={ms(t_end - t_clean)}ms 总计={ms(t_end - t0)}ms")
-        print(f"[耗时] {timing}")
-        _log(f"{timing} | 原文: {raw} | 整理: {cleaned}")
+        text = cleanup(raw)                   # 整理关着就原样返回；开着就等整理完
+        t2 = time.time()
+        if text != raw:
+            print(f"[整理 #{cid}] {text}")
+        insert_text(text)                     # 只插一次最终文本（不再先插原文再替换）
+        t3 = time.time()
+        timing = f"STT={ms(t1 - t0)}ms 整理={ms(t2 - t1)}ms 插入={ms(t3 - t2)}ms 总计={ms(t3 - t0)}ms"
+        print(f"[耗时 #{cid}] {timing}")
+        _log(f"#{cid} {timing} | 文本: {text}")
     except Exception as e:
-        print(f"[错误] 处理失败：{e}")
-        _log(f"错误: {e}")
+        print(f"[错误 #{cid}] {e}")
+        _log(f"#{cid} 错误: {e}")
 
 
 def on_press(key):
