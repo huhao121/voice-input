@@ -32,6 +32,9 @@ def cleanup(transcript: str, timeout: float = 30.0) -> str:
     if not transcript:
         return ""
     conf = load_llm_config()
+    if not conf["api_key"]:
+        print("[cleanup] 未配置有效 API key（config.json 里 api_key 还是占位符？），跳过整理、直接用原文。")
+        return transcript
     try:
         r = requests.post(
             f"{conf['base_url']}/chat/completions",

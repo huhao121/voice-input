@@ -40,6 +40,13 @@ def load_llm_config() -> dict:
     api_key = (os.getenv("LLM_API_KEY") or os.getenv("ZHIPU_API_KEY")
                or os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
                or cfg.get("api_key", ""))
+    # API key 必是 ASCII；含中文（=没填的占位符）一律视为"未配置"，
+    # 否则会塞进 HTTP 头导致 latin-1 编码崩溃。
+    api_key = api_key.strip()
+    try:
+        api_key.encode("ascii")
+    except UnicodeEncodeError:
+        api_key = ""
     return {
         "provider": provider,
         "api_key": api_key,

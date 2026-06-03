@@ -67,16 +67,33 @@ def on_release(key):
                 threading.Thread(target=_process, args=(audio,), daemon=True).start()
 
 
+def _disable_quick_edit():
+    """关掉 Windows 控制台的"快速编辑模式"：否则点一下窗口会冻住程序，要按回车才继续。"""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.GetStdHandle(-10)  # STD_INPUT_HANDLE
+        mode = ctypes.c_uint()
+        if k.GetConsoleMode(h, ctypes.byref(mode)):
+            ENABLE_QUICK_EDIT, ENABLE_EXTENDED_FLAGS = 0x40, 0x80
+            k.SetConsoleMode(h, (mode.value & ~ENABLE_QUICK_EDIT) | ENABLE_EXTENDED_FLAGS)
+    except Exception:
+        pass
+
+
 def main():
+    _disable_quick_edit()
     # 1) 配置：没 key 就生成模板，提示用户填好再来
     if ensure_config_template():
         print(f"⚙️  已生成配置模板：{CONFIG_PATH}")
-        print("   请打开它填入你的 API key（默认用智谱 GLM），保存后重新运行本程序。")
     conf = load_llm_config()
     if conf["api_key"]:
         print(f"整理用模型：{conf['provider']} / {conf['model']}")
     else:
-        print("⚠️  未配置 LLM key，整理步骤会回退为原文（语音转文字仍可用）。")
+        print(f"⚠️  还没填有效 API key（{CONFIG_PATH} 里 api_key 仍是占位符）。")
+        print("   现在能用语音转文字，但不会做去口癖整理。填好 key 重启即可。")
     # 2) 模型：缺失就现在下载，避免第一次按 F9 时卡 250MB
     try:
         if not model_present():
