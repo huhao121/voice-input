@@ -35,6 +35,17 @@ def insert_text(text: str):
             pass
 
 
+def replace_text(n_chars: int, new_text: str):
+    """删掉光标前 n_chars 个字符，再插入 new_text。
+    用于"先出原文、整理好再替换"——前提是替换期间你没动光标/没继续打字。
+    """
+    if n_chars > 0:
+        for _ in range(n_chars):
+            _kb.press(Key.backspace)
+            _kb.release(Key.backspace)
+    insert_text(new_text)
+
+
 if __name__ == "__main__":
     print("3 秒后把一段文字粘到你光标处，请把光标放到某个输入框…")
     time.sleep(3)

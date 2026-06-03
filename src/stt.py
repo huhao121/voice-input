@@ -35,6 +35,14 @@ def _get_recognizer():
     return _recognizer
 
 
+def warmup():
+    """启动时预热：建好识别器并跑一小段静音，把"冷启动"的开销提前花掉。"""
+    rec = _get_recognizer()
+    s = rec.create_stream()
+    s.accept_waveform(16000, np.zeros(1600, dtype=np.float32))
+    rec.decode_stream(s)
+
+
 def transcribe(audio_int16: np.ndarray) -> str:
     """把 int16 音频转成文字。"""
     if audio_int16 is None or len(audio_int16) == 0:

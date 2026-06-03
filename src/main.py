@@ -48,18 +48,26 @@ def _process(audio):
     if len(audio) < 1600:   # < 0.1 秒，当作误触，忽略
         return
     try:
-        from inject import insert_text
+        from inject import insert_text, replace_text
+        ms = lambda dt: int(dt * 1000)
         t0 = time.time()
-        raw = _transcribe(audio);   t1 = time.time()
+        raw = _transcribe(audio)
         print(f"[STT] {raw}")
-        text = cleanup(raw);        t2 = time.time()
-        print(f"[整理] {text}")
-        insert_text(text);          t3 = time.time()
-        stt, clean, ins, total = (int((t1 - t0) * 1000), int((t2 - t1) * 1000),
-                                  int((t3 - t2) * 1000), int((t3 - t0) * 1000))
-        timing = f"STT={stt}ms 整理={clean}ms 插入={ins}ms 总计={total}ms"
+        insert_text(raw)                      # ① 先把原文秒出到输入框（实时感）
+        t_raw = time.time()
+        print(f"[出原文] {ms(t_raw - t0)}ms")
+
+        cleaned = cleanup(raw)                # ② 后台整理（cleanup 内部：关了/没key/失败都会原样返回 raw）
+        t_clean = time.time()
+        if cleaned and cleaned != raw:
+            replace_text(len(raw), cleaned)   # ③ 整理好了，把原文替换成干净版
+            print(f"[整理] {cleaned}")
+        t_end = time.time()
+
+        timing = (f"出原文={ms(t_raw - t0)}ms 整理={ms(t_clean - t_raw)}ms "
+                  f"替换={ms(t_end - t_clean)}ms 总计={ms(t_end - t0)}ms")
         print(f"[耗时] {timing}")
-        _log(f"{timing} | 原文: {raw} | 整理: {text}")
+        _log(f"{timing} | 原文: {raw} | 整理: {cleaned}")
     except Exception as e:
         print(f"[错误] 处理失败：{e}")
         _log(f"错误: {e}")
@@ -117,6 +125,9 @@ def main():
     try:
         if not model_present():
             ensure_model()
+        print("预热语音模型…（消除首次识别的冷启动延迟）")
+        from stt import warmup
+        warmup()
     except Exception as e:
         print(f"⚠️  {e}")
     print(f"语音输入法已启动。按住 [{_HOTKEY_NAME.upper()}] 说话，松开出字。Ctrl+C 退出。")
