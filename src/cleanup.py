@@ -4,8 +4,9 @@
 只依赖 requests，方便测试与移植。
 """
 
-import os
 import requests
+
+from config import load_llm_config
 
 # 整理 prompt（提炼自 OpenLess Light 模式，见 ../RESEARCH.md）
 SYSTEM_PROMPT = """# 角色
@@ -23,23 +24,20 @@ SYSTEM_PROMPT = """# 角色
 # 中英混排：中文里夹的英文技术词原样保留；英文音译还原(脱肯→Token)
 # 输出：只输出整理后正文，无前缀无解释无对比。"""
 
-# 配置（环境变量，便于在 Windows / 这里都能跑）
-API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY", "")
-BASE_URL = os.getenv("CLEANUP_BASE_URL", "https://api.deepseek.com")
-MODEL = os.getenv("CLEANUP_MODEL", "deepseek-chat")
-
-
 def cleanup(transcript: str, timeout: float = 30.0) -> str:
-    """把原始转写整理成可发送的文字。失败时回退为原文（不阻断输入）。"""
+    """把原始转写整理成可发送的文字。失败时回退为原文（不阻断输入）。
+    LLM 服务商/模型/key 由 config 决定（支持 deepseek / zhipu(GLM) / openai 等）。
+    """
     transcript = (transcript or "").strip()
     if not transcript:
         return ""
+    conf = load_llm_config()
     try:
         r = requests.post(
-            f"{BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {API_KEY}"},
+            f"{conf['base_url']}/chat/completions",
+            headers={"Authorization": f"Bearer {conf['api_key']}"},
             json={
-                "model": MODEL,
+                "model": conf["model"],
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": f"<raw_transcript>\n{transcript}\n</raw_transcript>\n请整理后输出。"},

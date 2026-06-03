@@ -21,40 +21,41 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**2. 下载 SenseVoice 模型**
-从 sherpa-onnx 预编译模型页下载 SenseVoice（int8）：
-https://github.com/k2-fsa/sherpa-onnx/releases （搜 `sense-voice`，约 250MB）
-解压后把里面的 `model.int8.onnx` 和 `tokens.txt` 放到：
+**2. 配 LLM 整理用的 key（首次运行会自动生成 `config.json` 模板）**
+直接 `python src\main.py` 跑一次，它会在程序目录生成 `config.json`，打开填好即可：
+```json
+{
+  "provider": "zhipu",
+  "api_key": "你的 key",
+  "model": "glm-4-flash",
+  "base_url": "https://open.bigmodel.cn/api/paas/v4"
+}
 ```
-projects\voice-input\models\sense-voice\
-```
-（或设环境变量 `STT_MODEL_DIR` 指向你放模型的目录）
+- **用智谱 GLM**（默认）：`provider` 填 `zhipu`，去 open.bigmodel.cn 申请 key。模型可填 `glm-4-flash`（快/便宜），不行就试 `glm-4.5-flash`。
+- **用 DeepSeek**：`provider` 填 `deepseek`，`model` 填 `deepseek-chat`，删掉 `base_url` 让它用默认即可。
+- 也可以用环境变量代替（`LLM_PROVIDER` + `ZHIPU_API_KEY`/`DEEPSEEK_API_KEY`）。
 
-**3. 配 LLM 整理用的 key**（用你的 DeepSeek key）
-```bat
-set DEEPSEEK_API_KEY=你的deepseek key
-```
-（想换模型/服务：设 `CLEANUP_BASE_URL` / `CLEANUP_MODEL`，默认 deepseek-chat）
-
-**4. 跑起来**
+**3. 跑起来**
 ```bat
 python src\main.py
 ```
+**首次运行会自动下载语音模型（~250MB）**到程序目录的 `models\sense-voice\`，下完即用。
+（下载慢/失败可手动下载放进去，或设 `STT_MODEL_DIR`、`MODEL_URL` 换源。）
 
-**5. 用**
+**4. 用**
 把光标放进任意输入框 → **按住 F9 说话** → **松开** → 整理后的文字自动出现。
 （想换热键：`set VOICE_HOTKEY=f8`）
 
 ## 分步自测（排错用）
-- 只测整理：`python src\cleanup.py`（不需要麦克风/模型）
-- 只测录音+识别：`python src\stt.py`（录 3 秒并识别）
+- 只测整理：`python src\cleanup.py`（不需要麦克风/模型，需配好 key）
+- 只测录音+识别：`python src\stt.py`（录 3 秒并识别，首次会下模型）
 - 只测插入：`python src\inject.py`（3 秒后往光标粘一段字）
 
 ## 已知坑
 - **全局热键**：某些情况下需要「以管理员身份运行」终端。
 - **插入到 Chrome/VSCode**：用的是剪贴板粘贴，最稳；若个别应用不灵，确认它支持 Ctrl+V。
 - **首次识别慢**：模型要加载进内存，第一次会顿一下，之后就快了。
-- **延迟**：整理用的是 deepseek-chat，云端会有几百 ms；想更快可换更小/更近的模型，或加「流式逐字插入」（见 RESEARCH.md 的降延迟技巧）。
+- **延迟**：整理走云端 LLM 有几百 ms；想更快可换更小/更近的模型，或加「流式逐字插入」（见 RESEARCH.md）。
 
 ## 验收标准（来自 PLAN.md）
 按住热键录音✓ → 转文字✓ → 去口癖整理✓ → 自动插光标处✓ → 松手 <2s 出字 → 有录音提示。

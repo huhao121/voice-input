@@ -13,6 +13,8 @@ from pynput import keyboard
 sys.path.insert(0, os.path.dirname(__file__))
 from recorder import Recorder          # noqa: E402
 from cleanup import cleanup            # noqa: E402
+from config import load_llm_config, ensure_config_template, CONFIG_PATH   # noqa: E402
+from model_download import ensure_model, model_present                    # noqa: E402
 
 # STT 延迟导入：没装 sherpa-onnx 时仍能启动（会在第一次录音时报错提示）
 def _transcribe(audio):
@@ -66,8 +68,21 @@ def on_release(key):
 
 
 def main():
-    if not os.getenv("DEEPSEEK_API_KEY") and not os.getenv("OPENAI_API_KEY"):
-        print("⚠️  未设置 DEEPSEEK_API_KEY，整理步骤会回退为原文。")
+    # 1) 配置：没 key 就生成模板，提示用户填好再来
+    if ensure_config_template():
+        print(f"⚙️  已生成配置模板：{CONFIG_PATH}")
+        print("   请打开它填入你的 API key（默认用智谱 GLM），保存后重新运行本程序。")
+    conf = load_llm_config()
+    if conf["api_key"]:
+        print(f"整理用模型：{conf['provider']} / {conf['model']}")
+    else:
+        print("⚠️  未配置 LLM key，整理步骤会回退为原文（语音转文字仍可用）。")
+    # 2) 模型：缺失就现在下载，避免第一次按 F9 时卡 250MB
+    try:
+        if not model_present():
+            ensure_model()
+    except Exception as e:
+        print(f"⚠️  {e}")
     print(f"语音输入法已启动。按住 [{_HOTKEY_NAME.upper()}] 说话，松开出字。Ctrl+C 退出。")
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
