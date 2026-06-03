@@ -1,15 +1,16 @@
-# GitHub Actions：在 Windows 虚拟机上把项目打包成 .exe 并发布到 Release
+# GitHub Actions：在 Windows 虚拟机上把项目打包成 .exe
 #
-# 【怎么触发】打一个版本 tag 就会自动构建并发布：
+# 测试构建（出 artifact，不发 Release）：推 main，或网页 Actions 手动触发
+# 正式发布（出 artifact + 发 Release）：验收通过后才打 tag
 #   git tag v0.1.0 && git push origin v0.1.0
-#   （也可以在 GitHub 网页 Actions 页点按钮手动触发）
 
 name: build-windows
 
 on:
   push:
-    tags: ["v*"]          # 推送 v 开头的 tag 时触发（如 v0.1.0）
-  workflow_dispatch: {}    # 也允许在网页上手动点触发
+    branches: [main]      # 推 main：构建测试产物 artifact（不发 Release）
+    tags: ["v*"]          # 打 tag：构建 + 发布 Release（里程碑才打 tag）
+  workflow_dispatch: {}    # 网页手动触发（也只出 artifact）
 
 permissions:
   contents: write          # 发布 Release 需要写权限
