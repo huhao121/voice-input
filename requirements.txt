@@ -1,0 +1,9 @@
+# LLM 整理（在哪都要）
+requests>=2.31
+
+# Windows 端运行才需要的：
+pynput>=1.7          # 全局热键 + 模拟 Ctrl+V
+sounddevice>=0.4     # 麦克风录音
+numpy>=1.24          # 音频数组
+pyperclip>=1.8       # 剪贴板
+sherpa-onnx>=1.10    # 本地 SenseVoice 语音识别
