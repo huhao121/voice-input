@@ -13,8 +13,20 @@ from pynput import keyboard
 sys.path.insert(0, os.path.dirname(__file__))
 from recorder import Recorder          # noqa: E402
 from cleanup import cleanup            # noqa: E402
-from config import load_llm_config, ensure_config_template, CONFIG_PATH   # noqa: E402
+from config import load_llm_config, ensure_config_template, CONFIG_PATH, APP_DIR   # noqa: E402
 from model_download import ensure_model, model_present                    # noqa: E402
+
+import time  # noqa: E402
+
+LOG_PATH = os.path.join(APP_DIR, "voice-input.log")
+
+
+def _log(line: str):
+    try:
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(time.strftime("%H:%M:%S ") + line + "\n")
+    except Exception:
+        pass
 
 # STT 延迟导入：没装 sherpa-onnx 时仍能启动（会在第一次录音时报错提示）
 def _transcribe(audio):
@@ -36,14 +48,21 @@ def _process(audio):
     if len(audio) < 1600:   # < 0.1 秒，当作误触，忽略
         return
     try:
-        raw = _transcribe(audio)
-        print(f"[STT] {raw}")
-        text = cleanup(raw)
-        print(f"[整理] {text}")
         from inject import insert_text
-        insert_text(text)
+        t0 = time.time()
+        raw = _transcribe(audio);   t1 = time.time()
+        print(f"[STT] {raw}")
+        text = cleanup(raw);        t2 = time.time()
+        print(f"[整理] {text}")
+        insert_text(text);          t3 = time.time()
+        stt, clean, ins, total = (int((t1 - t0) * 1000), int((t2 - t1) * 1000),
+                                  int((t3 - t2) * 1000), int((t3 - t0) * 1000))
+        timing = f"STT={stt}ms 整理={clean}ms 插入={ins}ms 总计={total}ms"
+        print(f"[耗时] {timing}")
+        _log(f"{timing} | 原文: {raw} | 整理: {text}")
     except Exception as e:
         print(f"[错误] 处理失败：{e}")
+        _log(f"错误: {e}")
 
 
 def on_press(key):

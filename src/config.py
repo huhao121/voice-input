@@ -47,11 +47,15 @@ def load_llm_config() -> dict:
         api_key.encode("ascii")
     except UnicodeEncodeError:
         api_key = ""
+    enabled = cfg.get("cleanup", True)
+    if os.getenv("CLEANUP_ENABLED", "").lower() in ("0", "false", "off"):
+        enabled = False
     return {
         "provider": provider,
         "api_key": api_key,
         "base_url": os.getenv("CLEANUP_BASE_URL") or cfg.get("base_url") or preset["base_url"],
         "model": os.getenv("CLEANUP_MODEL") or cfg.get("model") or preset["model"],
+        "enabled": enabled,   # False = 跳过 LLM 整理，纯本地 STT（保证 <1s）
     }
 
 
@@ -61,11 +65,12 @@ def ensure_config_template() -> bool:
     if os.path.exists(CONFIG_PATH) or has_env_key:
         return False
     template = {
-        "_说明": "provider 可填 deepseek / zhipu / openai；填好 api_key 即可。也可自定义 base_url、model。",
+        "_说明": "provider 可填 deepseek / zhipu / openai；填好 api_key 即可。cleanup=false 则关闭 LLM 整理，纯本地 STT，最快(<1s)。",
         "provider": "zhipu",
         "api_key": "在这里填你的 API key（智谱在 open.bigmodel.cn 申请）",
         "model": "glm-4-flash",
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "cleanup": True,
     }
     json.dump(template, open(CONFIG_PATH, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     return True

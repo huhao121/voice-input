@@ -8,6 +8,8 @@ import requests
 
 from config import load_llm_config
 
+_session = requests.Session()   # 复用连接(keep-alive)，省掉每次 TLS 握手的几百 ms
+
 # 整理 prompt（提炼自 OpenLess Light 模式，见 ../RESEARCH.md）
 SYSTEM_PROMPT = """# 角色
 你是语音输入整理器。输入来自 ASR 转写，含口癖、断句缺失、同音字错误。
@@ -32,11 +34,13 @@ def cleanup(transcript: str, timeout: float = 30.0) -> str:
     if not transcript:
         return ""
     conf = load_llm_config()
+    if not conf.get("enabled", True):
+        return transcript            # 整理已关闭：纯本地 STT，最快
     if not conf["api_key"]:
         print("[cleanup] 未配置有效 API key（config.json 里 api_key 还是占位符？），跳过整理、直接用原文。")
         return transcript
     try:
-        r = requests.post(
+        r = _session.post(
             f"{conf['base_url']}/chat/completions",
             headers={"Authorization": f"Bearer {conf['api_key']}"},
             json={
@@ -45,8 +49,8 @@ def cleanup(transcript: str, timeout: float = 30.0) -> str:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": f"<raw_transcript>\n{transcript}\n</raw_transcript>\n请整理后输出。"},
                 ],
-                "temperature": 0.2,
-                "max_tokens": 500,
+                "temperature": 0,
+                "max_tokens": 256,
                 "stream": False,
             },
             timeout=timeout,
