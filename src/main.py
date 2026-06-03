@@ -40,19 +40,21 @@ TRIGGER = getattr(keyboard.Key, _HOTKEY_NAME, keyboard.Key.f9)
 
 recorder = Recorder()
 _recording = False
+_cycle = 0
 _lock = threading.Lock()
 
 
-def _process(audio):
+def _process(audio, cid=0):
     """后台线程：转写 → 整理 → 插入。不阻塞热键监听。"""
     if len(audio) < 1600:   # < 0.1 秒，当作误触，忽略
+        print(f"  #{cid} 录音太短，忽略")
         return
     try:
         from inject import insert_text, replace_text
         ms = lambda dt: int(dt * 1000)
         t0 = time.time()
         raw = _transcribe(audio)
-        print(f"[STT] {raw}")
+        print(f"[STT #{cid}] {raw}")
         insert_text(raw)                      # ① 先把原文秒出到输入框（实时感）
         t_raw = time.time()
         print(f"[出原文] {ms(t_raw - t0)}ms")
@@ -84,14 +86,16 @@ def on_press(key):
 
 
 def on_release(key):
-    global _recording
+    global _recording, _cycle
     if key == TRIGGER:
         with _lock:
             if _recording:
                 _recording = False
+                _cycle += 1
+                cid = _cycle
                 audio = recorder.stop()
-                print("■ 处理中…")
-                threading.Thread(target=_process, args=(audio,), daemon=True).start()
+                print(f"—— F9 #{cid} 松开（录到 {len(audio)} 采样）——")
+                threading.Thread(target=_process, args=(audio, cid), daemon=True).start()
 
 
 def _disable_quick_edit():
