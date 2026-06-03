@@ -21,8 +21,9 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**2. 配 LLM 整理用的 key（首次运行会自动生成 `config.json` 模板）**
-直接 `python src\main.py` 跑一次，它会在程序目录生成 `config.json`，打开填好即可：
+**2.（可选）开启 LLM 整理**
+**默认是纯语音转文字（又快又准，不需要 key）**，直接跳到第 3 步即可。
+如果想要 AI 帮你去口癖/润色（会慢 ~2s，且可能改写原意），首次运行会生成 `config.json`，把 `cleanup` 设为 `true` 并填好 key：
 ```json
 {
   "provider": "zhipu",

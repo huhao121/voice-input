@@ -47,9 +47,13 @@ def load_llm_config() -> dict:
         api_key.encode("ascii")
     except UnicodeEncodeError:
         api_key = ""
-    enabled = cfg.get("cleanup", True)
-    if os.getenv("CLEANUP_ENABLED", "").lower() in ("0", "false", "off"):
+    # 默认关闭 LLM 整理：纯本地 STT 又快又准；想要润色可在 config.json 设 cleanup=true
+    enabled = cfg.get("cleanup", False)
+    env = os.getenv("CLEANUP_ENABLED", "").lower()
+    if env in ("0", "false", "off"):
         enabled = False
+    elif env in ("1", "true", "on"):
+        enabled = True
     return {
         "provider": provider,
         "api_key": api_key,
@@ -65,12 +69,12 @@ def ensure_config_template() -> bool:
     if os.path.exists(CONFIG_PATH) or has_env_key:
         return False
     template = {
-        "_说明": "provider 可填 deepseek / zhipu / openai；填好 api_key 即可。cleanup=false 则关闭 LLM 整理，纯本地 STT，最快(<1s)。",
+        "_说明": "默认 cleanup=false：纯本地语音转文字，又快又准。想要 LLM 润色去口癖再设 true 并填 api_key。",
+        "cleanup": False,
         "provider": "zhipu",
-        "api_key": "在这里填你的 API key（智谱在 open.bigmodel.cn 申请）",
+        "api_key": "（仅 cleanup=true 时需要）智谱在 open.bigmodel.cn 申请",
         "model": "glm-4-flash",
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "cleanup": True,
     }
     json.dump(template, open(CONFIG_PATH, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     return True

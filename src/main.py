@@ -116,11 +116,12 @@ def main():
     if ensure_config_template():
         print(f"⚙️  已生成配置模板：{CONFIG_PATH}")
     conf = load_llm_config()
-    if conf["api_key"]:
-        print(f"整理用模型：{conf['provider']} / {conf['model']}")
+    if conf["enabled"] and conf["api_key"]:
+        print(f"整理：开启（{conf['provider']} / {conf['model']}）")
+    elif conf["enabled"]:
+        print(f"整理：已开但没填 key（{CONFIG_PATH}），本次按纯语音转文字处理。")
     else:
-        print(f"⚠️  还没填有效 API key（{CONFIG_PATH} 里 api_key 仍是占位符）。")
-        print("   现在能用语音转文字，但不会做去口癖整理。填好 key 重启即可。")
+        print("整理：关闭（纯实时语音转文字，最快）。想要润色可在 config.json 设 cleanup=true。")
     # 2) 模型：缺失就现在下载，避免第一次按 F9 时卡 250MB
     try:
         if not model_present():
