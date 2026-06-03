@@ -18,9 +18,9 @@ def _insert_method() -> str:
     if m:
         return m
     try:
-        return (json.load(open(CONFIG_PATH, encoding="utf-8")).get("insert") or "type").lower()
+        return (json.load(open(CONFIG_PATH, encoding="utf-8")).get("insert") or "paste").lower()
     except Exception:
-        return "type"
+        return "paste"
 
 
 # ---- 方法一：SendInput 逐字 Unicode（Windows 默认，无剪贴板）----
@@ -74,6 +74,38 @@ if sys.platform == "win32":
         arr = (_INPUT * len(evts))(*evts)
         _SendInput(len(evts), arr, ctypes.sizeof(_INPUT))
 
+    _VK_CONTROL = 0x11
+    _VK_V = 0x56
+
+    def _ctrl_v():
+        # 用 SendInput 发一次干净的 Ctrl+V（不依赖 pynput，避免之前的"粘两遍"）
+        evts = [
+            _make(_VK_CONTROL, 0, 0),                   # Ctrl ↓
+            _make(_VK_V, 0, 0),                         # V ↓
+            _make(_VK_V, 0, _KEYEVENTF_KEYUP),          # V ↑
+            _make(_VK_CONTROL, 0, _KEYEVENTF_KEYUP),    # Ctrl ↑
+        ]
+        arr = (_INPUT * len(evts))(*evts)
+        _SendInput(len(evts), arr, ctypes.sizeof(_INPUT))
+
+    def _paste_win(text: str):
+        # 整段一次性粘贴：瞬间出现（不像逐字那样慢慢投递）
+        import pyperclip
+        original = None
+        try:
+            original = pyperclip.paste()
+        except Exception:
+            pass
+        pyperclip.copy(text)
+        time.sleep(0.04)
+        _ctrl_v()
+        time.sleep(0.12)
+        if original is not None:
+            try:
+                pyperclip.copy(original)
+            except Exception:
+                pass
+
 
 # ---- 方法二：剪贴板 + Ctrl+V（备用）----
 def _insert_clipboard(text: str):
@@ -101,8 +133,11 @@ def _insert_clipboard(text: str):
 def insert_text(text: str):
     if not text:
         return
-    if sys.platform == "win32" and _insert_method() != "paste":
-        _type_unicode(text)
+    if sys.platform == "win32":
+        if _insert_method() == "type":
+            _type_unicode(text)      # 备用：逐字（不依赖剪贴板，但长句投递慢）
+        else:
+            _paste_win(text)         # 默认：整段一次性粘贴（瞬间出现，且单次不重复）
     else:
         _insert_clipboard(text)
 
