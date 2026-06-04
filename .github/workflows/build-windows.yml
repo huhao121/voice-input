@@ -36,6 +36,20 @@ jobs:
         continue-on-error: true
         run: pytest tests/test_insert_gui.py -v --timeout=120
 
+  # 在【你自己的 Windows 真机】上跑 GUI 插入测试（有真桌面/前台，SendInput 才生效）
+  # 只有你机器开着且 runner 在线时才跑；不影响云端的 test / build。
+  test-gui:
+    runs-on: [self-hosted, windows-gui]
+    steps:
+      - name: 拉代码
+        uses: actions/checkout@v4
+      - name: 装测试依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pynput pyperclip pywin32 pytest pytest-timeout pywinauto
+      - name: 真实记事本插入测试（你的真机）
+        run: pytest tests/test_insert_gui.py -v --timeout=120
+
   build-windows:
     runs-on: windows-latest    # ← GitHub 免费提供的 Windows 虚拟机
     steps:
