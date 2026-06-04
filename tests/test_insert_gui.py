@@ -18,14 +18,26 @@ SAMPLE = "零一二三testABC123"
 
 
 def _open_notepad():
+    import ctypes
     from pywinauto.application import Application
     app = Application(backend="win32").start("notepad.exe")
     dlg = app.window(class_name="Notepad")
     dlg.wait("visible ready", timeout=15)
     edit = dlg.child_window(class_name="Edit")
     edit.wait("visible ready", timeout=10)
-    edit.set_focus()
-    time.sleep(0.8)
+    hwnd = dlg.handle
+    # 无头 CI 上抢前台焦点很难，多试几次
+    for _ in range(5):
+        try:
+            ctypes.windll.user32.ShowWindow(hwnd, 9)        # SW_RESTORE
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+        except Exception:
+            pass
+        try:
+            edit.set_focus()
+        except Exception:
+            pass
+        time.sleep(0.5)
     return app, edit
 
 

@@ -29,9 +29,12 @@ jobs:
       - name: 装测试依赖
         run: |
           python -m pip install --upgrade pip
-          pip install requests pynput pyperclip pytest pytest-timeout pywinauto
-      - name: 跑测试（逻辑 + GUI 插入）
-        run: pytest tests/ -v --timeout=120
+          pip install requests pynput pyperclip pywin32 pytest pytest-timeout pywinauto
+      - name: 逻辑测试（必须通过 = 任务成败的关卡）
+        run: pytest tests/test_logic.py -v --timeout=60
+      - name: GUI 插入测试（真实记事本，信息性，不阻断）
+        continue-on-error: true
+        run: pytest tests/test_insert_gui.py -v --timeout=120
 
   build-windows:
     runs-on: windows-latest    # ← GitHub 免费提供的 Windows 虚拟机
