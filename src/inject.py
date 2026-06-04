@@ -18,9 +18,9 @@ def _insert_method() -> str:
     if m:
         return m
     try:
-        return (json.load(open(CONFIG_PATH, encoding="utf-8")).get("insert") or "paste").lower()
+        return (json.load(open(CONFIG_PATH, encoding="utf-8")).get("insert") or "type").lower()
     except Exception:
-        return "paste"
+        return "type"
 
 
 # ---- 方法一：SendInput 逐字 Unicode（Windows 默认，无剪贴板）----
@@ -78,12 +78,15 @@ if sys.platform == "win32":
     _VK_V = 0x56
 
     def _ctrl_v():
-        # 用 SendInput 发一次干净的 Ctrl+V（不依赖 pynput，避免之前的"粘两遍"）
+        # 用 SendInput 发一次干净的 Ctrl+V（带扫描码，兼容性更好）
+        mvk = ctypes.windll.user32.MapVirtualKeyW
+        sc_ctrl = mvk(_VK_CONTROL, 0)
+        sc_v = mvk(_VK_V, 0)
         evts = [
-            _make(_VK_CONTROL, 0, 0),                   # Ctrl ↓
-            _make(_VK_V, 0, 0),                         # V ↓
-            _make(_VK_V, 0, _KEYEVENTF_KEYUP),          # V ↑
-            _make(_VK_CONTROL, 0, _KEYEVENTF_KEYUP),    # Ctrl ↑
+            _make(_VK_CONTROL, sc_ctrl, 0),                   # Ctrl ↓
+            _make(_VK_V, sc_v, 0),                            # V ↓
+            _make(_VK_V, sc_v, _KEYEVENTF_KEYUP),             # V ↑
+            _make(_VK_CONTROL, sc_ctrl, _KEYEVENTF_KEYUP),    # Ctrl ↑
         ]
         arr = (_INPUT * len(evts))(*evts)
         _SendInput(len(evts), arr, ctypes.sizeof(_INPUT))
