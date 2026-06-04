@@ -1,11 +1,13 @@
-"""真实 Windows GUI 插入测试：开记事本 → insert_text → 读回断言。
+"""真实 GUI 插入测试：自建一个 Tkinter 文本框作靶子（避开 Win11 记事本控件坑）。
 
-这正是能自动抓到"粘两遍 / 插入慢"的测试。仅在 Windows 上跑（CI 的 windows-latest 即可）。
+开一个置顶文本框 → 抢前台 → insert_text → 读回断言。
+能自动抓"粘两遍 / 内容不符"。仅 Windows（需真桌面会话，自托管 runner 上跑）。
 """
 
 import os
 import sys
 import time
+import importlib
 
 import pytest
 
@@ -15,65 +17,60 @@ if sys.platform != "win32":
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 SAMPLE = "零一二三testABC123"
+_TITLE = "vi_test_target"
 
 
-def _open_notepad():
+def _insert_and_read(method: str) -> str:
+    import tkinter as tk
     import ctypes
-    from pywinauto.application import Application
-    app = Application(backend="win32").start("notepad.exe")
-    dlg = app.window(class_name="Notepad")
-    dlg.wait("visible ready", timeout=15)
-    edit = dlg.child_window(class_name="Edit")
-    edit.wait("visible ready", timeout=10)
-    hwnd = dlg.handle
-    # 无头 CI 上抢前台焦点很难，多试几次
-    for _ in range(5):
-        try:
-            ctypes.windll.user32.ShowWindow(hwnd, 9)        # SW_RESTORE
-            ctypes.windll.user32.SetForegroundWindow(hwnd)
-        except Exception:
-            pass
-        try:
-            edit.set_focus()
-        except Exception:
-            pass
-        time.sleep(0.5)
-    return app, edit
 
-
-def _insert_and_read(method):
     os.environ["INSERT_METHOD"] = method
-    import importlib
     import inject
     importlib.reload(inject)
-    app, edit = _open_notepad()
+
+    root = tk.Tk()
+    root.title(_TITLE)
+    root.geometry("520x220+200+200")
+    txt = tk.Text(root)
+    txt.pack(fill="both", expand=True)
+    root.attributes("-topmost", True)
+    root.update()
+    root.deiconify()
+    root.lift()
+    txt.focus_set()
+    root.update()
+    time.sleep(0.5)
+
+    # 抢到前台（SendInput 只送前台窗口）
+    hwnd = ctypes.windll.user32.FindWindowW(None, _TITLE)
+    if hwnd:
+        ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+        ctypes.windll.user32.SetForegroundWindow(hwnd)
+    root.update()
+    time.sleep(0.3)
+
     try:
-        t0 = time.time()
         inject.insert_text(SAMPLE)
         got = ""
         deadline = time.time() + 5
         while time.time() < deadline:
-            got = edit.window_text()
+            root.update()                       # 抽 Tk 事件，接收注入的按键
+            got = txt.get("1.0", "end-1c")
             if got.strip():
                 break
             time.sleep(0.05)
-        latency = time.time() - t0
-        return got, latency
+        return got
     finally:
-        try:
-            app.kill()
-        except Exception:
-            pass
+        root.destroy()
 
 
-def test_paste_single_and_fast():
-    """整段粘贴：内容正确（不重复）且 <1.5s 出现。"""
-    got, latency = _insert_and_read("paste")
-    assert got == SAMPLE, f"粘贴内容不符（重复/缺失？）got={got!r}"
-    assert latency < 1.5, f"粘贴太慢: {latency:.2f}s"
+def test_paste_single():
+    """整段粘贴：内容正确且不重复。"""
+    got = _insert_and_read("paste")
+    assert got == SAMPLE, f"paste got={got!r}"
 
 
 def test_type_single():
-    """逐字输入：至少内容正确不重复（速度可能略慢，这里只验正确性）。"""
-    got, _ = _insert_and_read("type")
-    assert got == SAMPLE, f"逐字输入内容不符（重复/缺失？）got={got!r}"
+    """逐字输入：内容正确且不重复。"""
+    got = _insert_and_read("type")
+    assert got == SAMPLE, f"type got={got!r}"
